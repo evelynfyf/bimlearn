@@ -1,4 +1,4 @@
-**BIMLearn** is an interactive, web-based educational platform designed to help users learn and practice **Bahasa Isyarat Malaysia (BIM)**. The system utilizes a real-time, webcam-based AI inference engine to provide instant feedback on sign language execution directly in your browser. 
+**BIMLearn** is an interactive, web-based educational platform designed to help users learn and practice **Malaysian Sign Language - Bahasa Isyarat Malaysia (BIM)**. The system utilizes a real-time, webcam-based AI inference engine to provide instant feedback on sign language execution directly in your browser. 
 
 *Developed as a Final Year Project.*
 
