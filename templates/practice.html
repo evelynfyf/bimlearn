@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}BIMLearn — Latihan: {{ word.label_ms }}{% endblock %}
+
+{% block head %}
+<style>
+  .practice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 680px) { .practice-grid { grid-template-columns: 1fr; } }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: .88rem; font-weight: 600;
+    text-decoration: none; margin-bottom: 20px;
+  }
+  .back-link:hover { color: var(--blue); }
+
+  /* Camera */
+  .cam-panel { background: #0f172a; border-radius: var(--radius);
+               overflow: hidden; position: relative; min-height: 300px; }
+  #video     { width:100%; height:100%; object-fit:cover; display:block;
+               transform: scaleX(-1); }
+  #canvas    { display:none; }
+  .cam-badge {
+    position: absolute; top:10px; left:10px;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: .72rem; font-weight: 700;
+    color: #94a3b8;
+  }
+  .cam-badge.live { color: #4ade80; }
+
+  /* Instruction */
+  .instruction {
+    background: var(--blue-l); border-left: 4px solid var(--blue);
+    border-radius: var(--radius); padding: 16px 20px;
+    font-size: 1.1rem; font-weight: 700; color: var(--blue);
+    margin-bottom: 16px;
+  }
+
+  /* Result */
+  .result-bar {
+    border-top: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    background: var(--white);
+  }
+  .res-label { font-size: 1.15rem; font-weight: 700; }
+  .res-label.correct { color: var(--green); }
+  .res-label.wrong   { color: var(--amber); }
+  .res-label.none    { color: var(--muted); }
+  .conf-badge {
+    margin-left: auto;
+    padding: 3px 12px; border-radius: 99px;
+    font-size: .78rem; font-weight: 700;
+  }
+  .conf-badge.high { background: var(--green-l); color: var(--green); }
+  .conf-badge.mid  { background: var(--amber-l); color: var(--amber); }
+  .conf-badge.low  { background: var(--bg);      color: var(--muted); }
+
+  /* Bars */
+  .bars-section { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .bar-row  { display: flex; align-items: center; gap: 8px; }
+  .bar-lbl  { width: 56px; font-size: .78rem; color: var(--muted); text-align: right; }
+  .bar-track { flex:1; height:8px; background:var(--border); border-radius:99px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:99px; background:var(--blue); transition:width .2s; }
+  .bar-fill.target { background: var(--green); }
+  .bar-val  { width: 36px; font-size: .75rem; color: var(--muted); }
+
+  .controls { display:flex; gap:10px; margin-top:16px; }
+  .controls .btn { flex:1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a class="back-link" href="/module/{{ word.slug }}">← Kembali ke Modul</a>
+
+<div class="instruction">
+  💪 Lakukan isyarat: <span id="target-display">{{ word.label_ms }}</span>
+  <span style="font-size:1.3rem;margin-left:8px;">{{ word.emoji }}</span>
+</div>
+
+<div class="practice-grid">
+  <!-- Left: camera + result bar -->
+  <div style="display:flex;flex-direction:column;gap:0;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow);">
+    <div class="cam-panel">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas"></canvas>
+      <div class="cam-badge" id="cam-badge">Memulakan…</div>
+    </div>
+    <div class="result-bar">
+      <span class="res-label none" id="res-label">Tiada tangan dikesan</span>
+      <span class="conf-badge low" id="conf-badge">—</span>
+    </div>
+  </div>
+
+  <!-- Right: per-class bars + controls -->
+  <div class="card" style="display:flex;flex-direction:column;gap:16px;">
+    <div style="font-weight:700;font-size:.88rem;">Keyakinan Semua Kelas</div>
+    <div class="bars-section" id="bars">
+      {% for w in ["air","demam","dengar","makan","minum","salah","saya","senyap","tidur","waktu"] %}
+      <div class="bar-row">
+        <div class="bar-lbl">{{ w }}</div>
+        <div class="bar-track">
+          <div class="bar-fill {% if w == word.slug %}target{% endif %}"
+               id="bar-{{ w }}" style="width:0%"></div>
+        </div>
+        <div class="bar-val" id="val-{{ w }}">0%</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="controls">
+      <!--<button class="btn btn-blue" onclick="cam.reset()">🔄 Cuba Lagi</button>-->
+      <a class="btn btn-ghost" href="/module/{{ word.slug }}">Kembali</a>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/camera.js"></script>
+<script>
+  const TARGET_SLUG  = "{{ word.slug }}";
+  const WORD_ID      = {{ word.id }};
+
+  const cam = new BIMCamera({
+    videoEl:  document.getElementById('video'),
+    canvasEl: document.getElementById('canvas'),
+    onStateChange(state) {
+      const badge = document.getElementById('cam-badge');
+      if (state === 'live') { badge.textContent = 'LANGSUNG'; badge.classList.add('live'); }
+      else if (state === 'stopped') { badge.textContent = 'Dihentikan'; badge.classList.remove('live'); }
+      else if (state === 'error')   { badge.textContent = 'Ralat kamera'; }
+    },
+    onResult(data) {
+      updateBars(data.all_scores);
+      updateLabel(data);
+
+      // Persist to DB on confident correct answer (rate-limited by intervalMs)
+      if (data.status === 'ok' && data.smoothed_label) {
+        persistAttempt(data.smoothed_label, data.confidence);
+      }
+    },
+  });
+
+  cam.start();
+
+  function updateBars(scores) {
+    if (!scores) return;
+    for (const [slug, score] of Object.entries(scores)) {
+      const fill = document.getElementById('bar-' + slug);
+      const val  = document.getElementById('val-'  + slug);
+      if (fill) fill.style.width = (score * 100).toFixed(1) + '%';
+      if (val)  val.textContent  = (score * 100).toFixed(0) + '%';
+    }
+  }
+
+  function updateLabel(data) {
+    const lbl    = document.getElementById('res-label');
+    const badge  = document.getElementById('conf-badge');
+    const label  = data.smoothed_label;
+    const conf   = data.confidence;
+
+    if (data.status === 'no_hand') {
+      lbl.textContent = 'Tiada tangan dikesan';
+      lbl.className   = 'res-label none';
+      badge.textContent = '—'; badge.className = 'conf-badge low';
+      return;
+    }
+    if (!label || data.status === 'low_confidence') {
+      lbl.textContent = 'Tidak pasti…';
+      lbl.className   = 'res-label none';
+      badge.textContent = conf ? (conf*100).toFixed(0)+'%' : '—';
+      badge.className = 'conf-badge mid';
+      return;
+    }
+    const isCorrect = label === TARGET_SLUG;
+    lbl.textContent = isCorrect ? '✓ ' + label.toUpperCase() + ' — Betul!' : label.toUpperCase();
+    lbl.className   = 'res-label ' + (isCorrect ? 'correct' : 'wrong');
+    badge.textContent = (conf*100).toFixed(0) + '%';
+    badge.className   = conf >= .75 ? 'conf-badge high' : conf >= .5 ? 'conf-badge mid' : 'conf-badge low';
+  }
+
+  // Throttled DB persistence: save at most once per 2 seconds
+  let _lastSave = 0;
+  async function persistAttempt(predictedSlug, confidence) {
+    const now = Date.now();
+    if (now - _lastSave < 2000) return;
+    _lastSave = now;
+    const fd = new FormData();
+    fd.append('save', '1');
+    fd.append('word_id', WORD_ID);
+    // We need to re-send the frame — simplest approach: let the next capture handle it
+    // The flag is checked in the next captureAndPredict cycle via a custom event
+    // (or simply call the API again with the latest canvas blob — see below)
+    const canvas = document.getElementById('canvas');
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const fd2 = new FormData();
+      fd2.append('frame',   blob, 'frame.jpg');
+      fd2.append('save',    '1');
+      fd2.append('word_id', WORD_ID);
+      await fetch('/api/predict', { method: 'POST', body: fd2 });
+    }, 'image/jpeg', 0.80);
+  }
+</script>
+{% endblock %}

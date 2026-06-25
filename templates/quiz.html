@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+{% block title %}BIMLearn — Kuiz: {{ word.label_ms }}{% endblock %}
+
+{% block head %}
+<style>
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: .88rem; font-weight: 600;
+    text-decoration: none; margin-bottom: 20px;
+  }
+  .back-link:hover { color: var(--blue); }
+
+  .quiz-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 680px) { .quiz-layout { grid-template-columns: 1fr; } }
+
+  /* Header row */
+  .quiz-header {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+    margin-bottom: 20px; box-shadow: var(--shadow);
+  }
+  .q-num   { font-size: .82rem; color: var(--muted); font-weight: 600; }
+  .score-display { margin-left:auto; font-weight:700; font-size:1rem; }
+  .timer-display {
+    font-size: 1.8rem; font-weight: 800;
+    min-width: 48px; text-align: center;
+  }
+  .timer-display.danger { color: var(--red); }
+  .timer-display.ok     { color: var(--blue); }
+
+  /* Instruction */
+  .instruction {
+    background: var(--blue-l); border-left: 4px solid var(--blue);
+    border-radius: var(--radius); padding: 16px 20px;
+    font-size: 1.15rem; font-weight: 700; color: var(--blue);
+    margin-bottom: 16px;
+  }
+
+  /* Camera */
+  .cam-panel { background: #0f172a; border-radius: var(--radius);
+               overflow:hidden; position:relative; min-height:300px; }
+  #video     { width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1); }
+  #canvas    { display:none; }
+  .cam-badge {
+    position:absolute; top:10px; left:10px;
+    background:rgba(0,0,0,.55); backdrop-filter:blur(4px);
+    border-radius:6px; padding:4px 10px;
+    font-size:.72rem; font-weight:700; color:#94a3b8;
+  }
+  .cam-badge.live { color:#4ade80; }
+
+  /* Realtime Feedback Bar */
+  .result-bar {
+    border-top: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    background: var(--white);
+  }
+  .res-label { font-size: 1.15rem; font-weight: 700; }
+  .res-label.none    { color: var(--muted); }
+  .res-label.correct { color: var(--green); }
+  .res-label.wrong   { color: var(--red); }
+  .conf-badge {
+    margin-left: auto;
+    padding: 3px 12px; border-radius: 99px;
+    font-size: .78rem; font-weight: 700;
+  }
+  .conf-badge.high { background: var(--green-l); color: var(--green); }
+  .conf-badge.mid  { background: var(--amber-l); color: var(--amber); }
+  .conf-badge.low  { background: var(--bg);      color: var(--muted); }
+
+  /* Right panel */
+  .right-panel { display:flex; flex-direction:column; gap:16px; }
+
+  .prog-bar-wrapper { }
+  .prog-label {
+    display:flex; justify-content:space-between;
+    font-size:.78rem; color:var(--muted); margin-bottom:4px;
+  }
+
+  #quiz-result { display:none; }
+
+  .controls { display:flex; gap:10px; margin-top:8px; flex-wrap:wrap; }
+  .controls .btn { flex:1; }
+
+  /* Summary screen */
+  #summary-screen { display:none; }
+  .summary-card {
+    text-align:center; padding:40px 24px;
+  }
+  .summary-score {
+    font-size: 3.5rem; font-weight:800; line-height:1;
+  }
+  .summary-score.perfect { color: var(--green); }
+  .summary-score.ok      { color: var(--blue); }
+  .summary-score.poor    { color: var(--amber); }
+  .summary-subtitle { color: var(--muted); margin-top:8px; }
+  .summary-actions  { display:flex; gap:12px; justify-content:center; margin-top:28px; flex-wrap:wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if is_general %}
+<a class="back-link" href="/">← Kembali ke Laman Utama</a>
+{% else %}
+<a class="back-link" href="/module/{{ word.slug }}">← Kembali ke Modul</a>
+{% endif %}
+
+{% if is_general %}
+<div id="setup-screen" class="card" style="max-width: 500px; margin: 40px auto; padding: 32px; box-shadow: var(--shadow); border: 1px solid var(--border);">
+  <div style="text-align: center; margin-bottom: 24px;">
+    <span style="font-size: 3rem;">🧩</span>
+    <h2 style="margin-top: 12px; font-weight: 800;">Kuiz Umum BIM</h2>
+    <p style="color: var(--muted); font-size: 0.95rem; margin-top: 4px;">Uji pemahaman isyarat anda dengan kombinasi perkataan rawak daripada semua modul.</p>
+  </div>
+  
+  <div style="margin-bottom: 28px;">
+    <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; color: var(--muted);">
+      <span>PILIH JUMLAH SOALAN</span>
+      <span id="slider-val" style="color: var(--blue); font-weight: 800;">5 Soalan</span>
+    </div>
+    <input type="range" id="q-slider" min="5" max="10" value="5" 
+           style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 4px; appearance: none; cursor: pointer; accent-color: var(--blue);" 
+           oninput="document.getElementById('slider-val').textContent = this.value + ' Soalan'">
+  </div>
+  
+  <button class="btn btn-blue btn-lg" style="width: 100%; display: block; text-align: center; font-weight: 700;" onclick="startGeneralQuiz()">
+    Mula Kuiz
+  </button>
+</div>
+{% endif %}
+
+<!-- Quiz screen -->
+<div id="quiz-screen">
+  <div class="quiz-header">
+    <div>
+      <div class="q-num" id="q-num">Soalan 1 / 5</div>
+      <div style="font-weight:700;font-size:1rem;" id="q-word">—</div>
+    </div>
+    <div class="timer-display ok" id="timer">10</div>
+    <div class="score-display" id="score-display">0 / 0</div>
+  </div>
+
+  <div class="instruction" id="instruction">
+    Tunjukkan isyarat untuk: <span id="target-label">—</span>
+    <span id="target-emoji" style="font-size:1.3rem;margin-left:8px;"></span>
+  </div>
+
+  <div class="quiz-layout">
+    <div style="display:flex;flex-direction:column;gap:0;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow);">
+      <div class="cam-panel">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <div class="cam-badge" id="cam-badge">Memulakan…</div>
+      </div>
+      <div class="result-bar">
+        <span class="res-label none" id="res-label">Tiada tangan dikesan</span>
+        <span class="conf-badge low" id="conf-badge">—</span>
+      </div>
+    </div>
+
+    <div class="right-panel card">
+      <div>
+        <div class="prog-label"><span>Kemajuan kuiz</span><span id="q-progress-txt">0/5</span></div>
+        <div class="progress-track">
+          <div class="progress-fill" id="q-progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div id="quiz-result" class="result-panel"></div>
+
+      <div class="controls" id="controls">
+        <button class="btn btn-blue" id="next-btn" style="display:none;" onclick="nextQuestion()">
+          Soalan Seterusnya →
+        </button>
+        <button class="btn btn-ghost" id="end-btn" onclick="endQuiz()">
+          Tamatkan Kuiz
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Summary screen -->
+<div id="summary-screen">
+  <div class="card summary-card">
+    <div style="font-size:2rem;margin-bottom:16px;">🎉</div>
+    <div class="summary-score" id="summary-score">—</div>
+    <div class="summary-subtitle" id="summary-text">—</div>
+    <div class="summary-actions">
+      {% if is_general %}
+      <a class="btn btn-blue btn-lg"  href="/quiz/general">Cuba Lagi</a>
+      <a class="btn btn-ghost btn-lg" href="/">Kembali ke Laman Utama</a>
+      {% else %}
+      <a class="btn btn-blue btn-lg"  href="/quiz/{{ word.slug }}">Cuba Lagi</a>
+      <a class="btn btn-ghost btn-lg" href="/module/{{ word.slug }}">Kembali ke Modul</a>
+      <a class="btn btn-ghost btn-lg" href="/">Semua Modul</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/camera.js"></script>
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const IS_GENERAL   = {{ 'true' if is_general else 'false' }};
+  const ANCHOR_SLUG  = "{{ word.slug }}";
+  const ANCHOR_LABEL = "{{ word.label_ms }}";
+  const ANCHOR_EMOJI = "{{ word.emoji }}";
+  let nQuestions     = IS_GENERAL ? 5 : 3; 
+  const TIMER_SECS   = 10;
+
+  // Word metadata map (injected from server for client-side label lookup)
+  const WORD_META = {
+    {% for w in ["air","demam","dengar","makan","minum","salah","saya","senyap","tidur","waktu"] %}
+    "{{ w }}": { label: "{{ w|capitalize }}", emoji: "" },
+    {% endfor %}
+    "air":"💧","demam":"🤒","dengar":"👂","makan":"🍽️","minum":"🥛",
+    "salah":"❌","saya":"👤","senyap":"🤫","tidur":"😴","waktu":"⏰"
+  };
+  // Simplified: just store emojis
+  const WORD_EMOJI = {
+    air:"💧",demam:"🤒",dengar:"👂",makan:"🍽️",minum:"🥛",
+    salah:"❌",saya:"👤",senyap:"🤫",tidur:"😴",waktu:"⏰"
+  };
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let sessionId    = null;
+  let questions    = [];      // array of word slugs
+  let qIndex       = 0;
+  let score        = 0;
+  let timerInterval= null;
+  let timeLeft     = TIMER_SECS;
+  let awaitingNext = false;   // true after answer recorded, waiting for Next btn
+  let qStartTime   = 0;
+  let lastSeenLabel = '';
+  let lastSeenConf  = 0;
+
+  // ── Camera ──────────────────────────────────────────────────────────────────
+  const cam = new BIMCamera({
+    videoEl:  document.getElementById('video'),
+    canvasEl: document.getElementById('canvas'),
+    onStateChange(state) {
+      const b = document.getElementById('cam-badge');
+      if (state === 'live')    { b.textContent = 'LANGSUNG'; b.classList.add('live'); }
+      if (state === 'stopped') { b.textContent = 'Dihentikan'; b.classList.remove('live'); }
+      if (state === 'error')   b.textContent = 'Ralat kamera';
+    },
+    onResult(data) {
+      if (awaitingNext) return;
+
+      const lbl = document.getElementById('res-label');
+      const badge = document.getElementById('conf-badge');
+      const conf = data.confidence;
+      const targetSlug = questions[qIndex];
+
+      //1. Guard against no hands detected
+
+      if (data.status === 'no_hand'){
+        lbl.textContent = 'Tiada tangan dikesan';
+        lbl.className = 'res-label none';
+        badge.textContent = '—';
+        badge.className = 'conf-badge low';
+        return; //Halt and wait for next frame
+      }
+
+      //2. Guard against low confidence models
+      if (data.status === 'low_confidence'|| !data.smoothed_label){
+        lbl.textContent = 'Tidak pasti…';
+        lbl.className = 'res-label none';
+        badge.textContent = conf ? (conf*100).toFixed(0)+'%' : '—';
+        badge.className = 'conf-badge mid';
+        return; //Halt and wait for next frame
+      }
+
+      //3. Hand is found -> Check if the prediction is correct or not -> Submit answer if correct, else show feedback
+      if (data.status === 'ok' && data.smoothed_label){
+        const currentPrediction = data.smoothed_label;
+        if (currentPrediction === targetSlug && data.confidence >= 0.6){
+          // Correct match! Submit immediately
+          lbl.textContent = 'Menganalisis...';
+          lbl.className = 'res-label correct';
+          badge.textContent = (conf*100).toFixed(0) + '%';
+          badge.className = 'conf-badge high';
+          submitAnswer(currentPrediction, data.confidence, false);
+        } else {
+          // Wrong match, but don't penalise immediately. Just show feedback.
+          // Give user leeway to fix their hands until timer runs out. Remember last seen label/confidence.
+
+          lbl.textContent = currentPrediction.toUpperCase();
+          lbl.className = 'res-label wrong';
+          badge.textContent = (conf*100).toFixed(0) + '%';
+          badge.className = data.confidence >= 0.75 ? 'conf-badge high' : 'conf-badge mid';
+          //Keep updating last seen label/confidence for this question
+          lastSeenLabel = data.smoothed_label;
+          lastSeenConf  = data.confidence;
+        }
+
+        /*
+        if (data.confidence >= 0.6){
+          badge.textContent = (conf*100).toFixed(0) + '% yakin';
+          badge.className = 'conf-badge mid';
+        } else {
+          badge.textContent = (conf*100).toFixed(0) + '% yakin';
+          badge.className = 'conf-badge low';
+        }
+      } else {
+        lbl.textContent = 'Mengesan…';
+        lbl.className = 'res-label none';
+        badge.textContent = '—';
+        badge.className = 'conf-badge low';
+      }*/
+      }
+      /*
+      if (data.status === 'ok' && data.smoothed_label) {
+        
+        const targetSlug = questions[qIndex];
+
+        //If the user gets it right, submit the answer immediately
+        if (data.smoothed_label === targetSlug && data.confidence >= 0.6){
+          submitAnswer(data.smoothed_label, data.confidence, false);
+        } else{
+          // If it's wrong, don't penalise immediately.
+          // Remember the last seen label in case the timer runs out.
+          lastSeenLabel = data.smoothed_label;
+          lastSeenConf  = data.confidence;
+        }
+      }*/
+    },
+  });
+
+  // ── Workflow Core Process ──────────────────────────────────────────────────────────────
+  async function init() {
+    if (IS_GENERAL) return; // Prevent autoloader; wait for configuration interaction
+    await startQuizExecution(3);
+  }
+
+  async function startGeneralQuiz() {
+    const slider = document.getElementById('q-slider');
+    nQuestions = parseInt(slider.value);
+    
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('quiz-screen').style.display = 'block';
+    
+    await startQuizExecution(nQuestions);
+  }
+  async function startQuizExecution(totalQuestions) {
+    const res  = await fetch('/api/quiz/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ anchor: ANCHOR_SLUG, n_questions: totalQuestions }),
+    });
+    const data = await res.json();
+    sessionId = data.session_id;
+    questions = data.questions;
+    nQuestions = data.total;
+
+    cam.start();
+    loadQuestion(0);
+  }
+
+  function loadQuestion(idx) {
+    if (idx >= nQuestions) { endQuiz(); return; }
+    qIndex       = idx;
+    awaitingNext = false;
+    timeLeft     = TIMER_SECS;
+    qStartTime   = Date.now();
+
+    // Reset last seen label/confidence for this question
+    lastSeenLabel = '';
+    lastSeenConf  = 0;
+
+    cam.reset();
+
+    const slug = questions[idx];
+    document.getElementById('q-num').textContent        = `Soalan ${idx+1} / ${nQuestions}`;
+    document.getElementById('q-word').textContent       = slug.toUpperCase();
+    document.getElementById('target-label').textContent = slug;
+    document.getElementById('target-emoji').textContent = WORD_EMOJI[slug] || '';
+    document.getElementById('q-progress-txt').textContent = `${idx}/${nQuestions}`;
+    document.getElementById('q-progress-fill').style.width = `${(idx/nQuestions)*100}%`;
+    document.getElementById('score-display').textContent = `${score} / ${idx}`;
+    document.getElementById('quiz-result').style.display = 'none';
+    document.getElementById('next-btn').style.display   = 'none';
+    document.getElementById('end-btn').textContent      = 'Tamatkan Kuiz';
+    // Reset feedback bar for next question
+    document.getElementById('res-label').textContent = 'Tiada tangan dikesan';
+    document.getElementById('res-label').className   = 'res-label none';
+    document.getElementById('conf-badge').textContent = '—';
+    document.getElementById('conf-badge').className   = 'conf-badge low';
+
+    startTimer();
+  }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      updateTimerDisplay();
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+
+        // If the user ran out of time, check if we saw *any* wrong sign.
+        // If yesm submit as wrong. If not, submit as timed out.
+        if (lastSeenLabel != '') {
+          submitAnswer(lastSeenLabel, lastSeenConf, false);
+        } else {
+          submitAnswer(null, 0, true);  // timeout
+        }
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    const el = document.getElementById('timer');
+    el.textContent = timeLeft;
+    el.className   = 'timer-display ' + (timeLeft <= 5 ? 'danger' : 'ok');
+  }
+
+  // ── Submit one answer ────────────────────────────────────────────────────────
+  async function submitAnswer(predictedSlug, confidence, timedOut) {
+    if (awaitingNext) return;
+    awaitingNext = true;
+    clearInterval(timerInterval);
+
+    const timeTaken = Date.now() - qStartTime;
+    const targetSlug = questions[qIndex];
+
+    const res  = await fetch('/api/quiz/answer', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        session_id: sessionId,
+        word_slug:  targetSlug,
+        predicted:  predictedSlug || '',
+        confidence: confidence,
+        timed_out:  timedOut,
+        time_ms:    timeTaken,
+      }),
+    });
+    const data = await res.json();
+    score = data.score;
+
+    showQuestionResult(data.is_correct, targetSlug, predictedSlug, timedOut, confidence);
+  }
+
+  function showQuestionResult(isCorrect, targetSlug, predictedSlug, timedOut, confidence) {
+    const panel = document.getElementById('quiz-result');
+    panel.style.display = 'block';
+    panel.className = 'result-panel ' + (isCorrect ? 'result-correct' : 'result-incorrect');
+
+    const remaining = nQuestions - (qIndex + 1);
+
+    if (timedOut) {
+      panel.innerHTML = `
+        <div class="result-title">⏰ Masa Tamat</div>
+        <p>Isyarat yang betul: <strong>${targetSlug.toUpperCase()}</strong></p>
+        <p>Markah: <strong>${score}/${qIndex+1}</strong></p>`;
+    } else if (isCorrect) {
+      panel.innerHTML = `
+        <div class="result-title">✓ Betul!</div>
+        <p>Anda menunjukkan isyarat <strong>${targetSlug.toUpperCase()}</strong> dengan tepat.</p>
+        <p>Keyakinan: <strong>${(confidence*100).toFixed(0)}%</strong></p>
+        <p>Markah: <strong>${score}/${qIndex+1}</strong></p>`;
+    } else {
+      panel.innerHTML = `
+        <div class="result-title">✗ Tidak Tepat</div>
+        <p>Isyarat yang betul: <strong>${targetSlug.toUpperCase()}</strong></p>
+        <p>Sistem mengenal pasti: <strong>${(predictedSlug||'—').toUpperCase()}</strong></p>
+        <p>Markah: <strong>${score}/${qIndex+1}</strong></p>`;
+    }
+
+    document.getElementById('score-display').textContent = `${score} / ${qIndex+1}`;
+
+    if (remaining > 0) {
+      document.getElementById('next-btn').style.display = 'inline-flex';
+      document.getElementById('end-btn').textContent    = 'Tamatkan Awal';
+    } else {
+      document.getElementById('next-btn').style.display = 'none';
+      document.getElementById('end-btn').textContent    = 'Lihat Keputusan';
+    }
+  }
+
+  function nextQuestion() { loadQuestion(qIndex + 1); }
+
+  async function endQuiz() {
+    clearInterval(timerInterval);
+    cam.stop();
+
+    await fetch('/api/quiz/end', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+
+    const finalScore = score;
+    const finalTotal = qIndex + (awaitingNext ? 1 : 0);
+    const acc        = finalTotal ? Math.round((finalScore/finalTotal)*100) : 0;
+
+    document.getElementById('quiz-screen').style.display    = 'none';
+    document.getElementById('summary-screen').style.display = 'block';
+
+    const scoreEl = document.getElementById('summary-score');
+    scoreEl.textContent = `${finalScore} / ${finalTotal}`;
+    scoreEl.className   = 'summary-score ' + (acc===100?'perfect': acc>=60?'ok':'poor');
+
+    const msg = acc===100 ? 'Cemerlang! Markah penuh!' :
+                acc>=60   ? 'Kerja yang baik! Teruskan berlatih.' :
+                            'Semak isyarat dan cuba lagi. Anda pasti boleh!';
+    document.getElementById('summary-text').textContent = `Ketepatan: ${acc}% — ${msg}`;
+  }
+
+  // ── Start ────────────────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+{% endblock %}

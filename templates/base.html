@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}BIMLearn{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:    #2563eb;
+      --blue-d:  #1d4ed8;
+      --blue-l:  #eff6ff;
+      --green:   #16a34a;
+      --green-l: #f0fdf4;
+      --red:     #dc2626;
+      --red-l:   #fef2f2;
+      --amber:   #d97706;
+      --amber-l: #fffbeb;
+      --bg:      #f1f5f9;
+      --white:   #ffffff;
+      --border:  #e2e8f0;
+      --text:    #0f172a;
+      --muted:   #64748b;
+      --radius:  12px;
+      --shadow:  0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px;
+            text-decoration: none; color: #fff; }
+    .logo-icon { font-size: 1.6rem; }
+    .logo-text { font-size: 1.4rem; font-weight: 800; letter-spacing: -.3px; }
+
+    nav ul { display: flex; list-style: none; gap: 4px; }
+    nav a {
+      color: rgba(255,255,255,.75);
+      text-decoration: none;
+      font-size: .88rem; font-weight: 600;
+      padding: 7px 14px; border-radius: 8px;
+      transition: background .2s, color .2s;
+    }
+    nav a:hover, nav a.active {
+      background: rgba(255,255,255,.18);
+      color: #fff;
+    }
+
+    /* ── Layout ── */
+    main { flex: 1; max-width: 1100px; width: 100%; margin: 32px auto; padding: 0 24px; }
+
+    .page-title {
+      font-size: 1.5rem; font-weight: 800; color: var(--text);
+      margin-bottom: 24px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .page-title .icon { font-size: 1.4rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px 20px; border-radius: 8px;
+      font-family: inherit; font-size: .9rem; font-weight: 600;
+      cursor: pointer; border: none; text-decoration: none;
+      transition: filter .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:hover  { filter: brightness(1.08); }
+    .btn-blue   { background: var(--blue);  color: #fff; }
+    .btn-green  { background: var(--green); color: #fff; }
+    .btn-ghost  { background: transparent; border: 1.5px solid var(--border);
+                  color: var(--muted); }
+    .btn-ghost:hover { border-color: var(--blue); color: var(--blue); }
+    .btn-lg     { padding: 13px 28px; font-size: 1rem; }
+    .btn-sm     { padding: 6px 14px; font-size: .82rem; }
+
+    /* ── Progress bar ── */
+    .progress-track {
+      height: 8px; background: var(--border);
+      border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: var(--blue);
+      border-radius: 99px; transition: width .4s ease;
+    }
+    .progress-fill.green { background: var(--green); }
+    .progress-fill.amber { background: var(--amber); }
+
+    /* ── Result panels ── */
+    .result-panel {
+      border-radius: var(--radius); padding: 20px;
+      border-left: 5px solid;
+    }
+    .result-correct   { border-color: var(--green); background: var(--green-l); }
+    .result-incorrect { border-color: var(--red);   background: var(--red-l); }
+    .result-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+    .result-correct .result-title   { color: var(--green); }
+    .result-incorrect .result-title { color: var(--red); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center; padding: 28px 24px;
+      color: var(--muted); font-size: .82rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      .header-inner { padding: 12px 16px; }
+      nav ul { gap: 2px; }
+      nav a  { padding: 6px 10px; font-size: .8rem; }
+      main   { padding: 0 16px; margin: 20px auto; }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="logo" href="/">
+        <span class="logo-icon">👐</span>
+        <span class="logo-text">BIMLearn</span>
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/"         class="nav-link {% if active=='dashboard' %}active{% endif %}">Utama</a></li>
+          <li><a href="/stats"    class="nav-link {% if active=='stats'     %}active{% endif %}">Statistik</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    BIMLearn — Sistem Pembelajaran Bahasa Isyarat Malaysia &nbsp;·&nbsp;
+    MyWSL Dataset (Rina Johari et al., 2023)
+  </footer>
+</body>
+</html>

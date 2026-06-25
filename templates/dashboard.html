@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block title %}BIMLearn — Laman Utama{% endblock %}
+
+{% block head %}
+<style>
+  .hero {
+    background: linear-gradient(135deg, #2563eb, #16a34a);
+    color: #fff; border-radius: var(--radius);
+    padding: 32px 28px; margin-bottom: 32px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .hero h2 { font-size: 1.6rem; font-weight: 800; }
+  .hero p  { opacity: .85; max-width: 560px; line-height: 1.55; }
+
+  .section-label {
+    font-size: .78rem; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .module-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--blue);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: transform .2s, box-shadow .2s;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .module-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
+  .module-card.mastered { border-left-color: var(--green); }
+  .module-card.weak     { border-left-color: var(--amber); }
+
+  .mc-header { display: flex; align-items: center; gap: 10px; }
+  .mc-emoji  { font-size: 1.6rem; }
+  .mc-name   { font-size: 1.05rem; font-weight: 700; }
+  .mc-en     { font-size: .78rem; color: var(--muted); }
+
+  .mc-progress-label {
+    display: flex; justify-content: space-between;
+    font-size: .78rem; color: var(--muted); margin-bottom: 4px;
+  }
+
+  .mc-actions {
+    display: flex; gap: 8px; margin-top: 4px;
+  }
+  .mc-actions .btn { flex: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h2>Belajar Bahasa Isyarat Malaysia (BIM)</h2>
+  <p>Latih 10 isyarat BIM asas dengan maklum balas langsung daripada model AI. Pilih modul untuk mula belajar.</p>
+  <div style="margin-top: 14px;">
+    <a class="btn btn-green btn-lg" href="/quiz/general" style="background-color: #16a34a; border-color: #16a34a; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+      <span>🧩 Ambil Kuiz Umum Rawak</span>
+    </a>
+  </div>
+</div>
+
+<div class="section-label">Modul Pembelajaran ({{ words|length }} perkataan)</div>
+
+<div class="module-grid">
+  {% for word in words %}
+  {% set prog = word.progress %}
+  {% set pct  = prog.progress_pct if prog else 0 %}
+  {% set card_class = "mastered" if pct >= 70 else ("weak" if (prog and prog.attempts > 2 and pct < 50) else "") %}
+  <div class="module-card {{ card_class }}">
+    <div class="mc-header">
+      <span class="mc-emoji">{{ word.emoji }}</span>
+      <div>
+        <div class="mc-name">{{ word.label_ms }}</div>
+        <div class="mc-en">{{ word.label_en }}</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="mc-progress-label">
+        <span>Kemajuan</span>
+        <span>{{ pct|int }}%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill {% if pct >= 70 %}green{% elif pct < 40 and (prog and prog.attempts > 2) %}amber{% endif %}"
+             style="width:{{ pct }}%"></div>
+      </div>
+    </div>
+
+    <div class="mc-actions">
+      <a class="btn btn-blue btn-sm" href="/module/{{ word.slug }}">Belajar</a>
+      <a class="btn btn-green btn-sm" href="/quiz/{{ word.slug }}">Kuiz</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

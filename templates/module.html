@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}BIMLearn — {{ word.label_ms }}{% endblock %}
+
+{% block head %}
+<style>
+  .module-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 680px) { .module-layout { grid-template-columns: 1fr; } }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: .88rem; font-weight: 600;
+    text-decoration: none; margin-bottom: 24px;
+    transition: color .2s;
+  }
+  .back-link:hover { color: var(--blue); }
+
+  .word-hero {
+    background: linear-gradient(135deg, #1e3a5f, #2563eb);
+    color: #fff; border-radius: var(--radius);
+    padding: 32px 28px; text-align: center;
+    margin-bottom: 24px;
+  }
+  .word-hero .emoji { font-size: 3.5rem; margin-bottom: 12px; }
+  .word-hero h1     { font-size: 2.2rem; font-weight: 800; }
+  .word-hero .en    { opacity: .75; margin-top: 4px; }
+
+  .ref-img { width:100%; border-radius: var(--radius); }
+  /* When you add real reference images/GIFs:
+     Replace .ref-box placeholder with:
+     <img src="/static/signs/{{ word.slug }}.jpg" class="ref-img">
+     .ref-img { width:100%; border-radius: var(--radius); }
+  */
+  .ref-icon { font-size: 3rem; }
+  .ref-hint { font-size: .82rem; }
+
+  .desc-box { padding: 16px 0; color: var(--muted); line-height: 1.65; }
+
+  .action-row {
+    display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap;
+  }
+  .action-row .btn { flex: 1; min-width: 140px; justify-content: center; }
+
+  .stat-row {
+    display: flex; gap: 16px; margin-top: 20px; flex-wrap: wrap;
+  }
+  .stat-pill {
+    background: var(--blue-l); color: var(--blue);
+    border-radius: 99px; padding: 6px 16px;
+    font-size: .82rem; font-weight: 700;
+  }
+  .stat-pill.green { background: var(--green-l); color: var(--green); }
+</style>
+{% endblock %}
+
+{% block content %}
+<a class="back-link" href="/">← Kembali ke Modul</a>
+
+{% set prog = word.progress %}
+{% set pct  = prog.progress_pct if prog else 0 %}
+
+<div class="module-layout">
+  <!-- Left: reference -->
+  <div>
+    <div class="word-hero">
+      <div class="emoji">{{ word.emoji }}</div>
+      <h1>{{ word.label_ms }}</h1>
+      <div class="en">{{ word.label_en }}</div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:12px;">Contoh Rujukan Isyarat</div>
+      <img src="/static/signs/{{ word.slug }}.jpg"
+      class="ref-img" alt="{{ word.label_ms }}">
+        <!-- Placeholder if no real media:-->
+      <div class="desc-box">{{ word.description }}</div>
+    </div>
+  </div>
+
+  <!-- Right: progress + actions -->
+  <div>
+    <div class="card" style="margin-bottom:20px;">
+      <div style="font-weight:700;margin-bottom:16px;">Kemajuan Anda</div>
+
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:6px;">
+        <span>Ketepatan keseluruhan</span><span>{{ pct|int }}%</span>
+      </div>
+      <div class="progress-track" style="margin-bottom:20px;">
+        <div class="progress-fill {% if pct >= 70 %}green{% endif %}"
+             style="width:{{ pct }}%"></div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-pill">{{ (prog.attempts if prog else 0) }} percubaan</div>
+        <div class="stat-pill green">{{ (prog.correct if prog else 0) }} betul</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:16px;">Tindakan</div>
+      <div class="action-row">
+        <a class="btn btn-blue btn-lg" href="/practice/{{ word.slug }}">
+          💪 Mula Latihan
+        </a>
+        <a class="btn btn-green btn-lg" href="/quiz/{{ word.slug }}">
+          📝 Ambil Kuiz
+        </a>
+      </div>
+      <p style="margin-top:16px;font-size:.82rem;color:var(--muted);">
+        Latihan membolehkan anda berlatih tanpa had masa.
+        Kuiz menguji anda dengan 5 soalan berjangka masa.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

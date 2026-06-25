@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% set active = "stats" %}
+{% block title %}BIMLearn — Statistik Prestasi{% endblock %}
+
+{% block head %}
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px; text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .stat-value { font-size: 2.4rem; font-weight: 800; color: var(--blue); margin: 8px 0; }
+  .stat-label { font-size: .82rem; color: var(--muted); font-weight: 600; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Per-word accuracy table */
+  .word-table { width:100%; border-collapse:collapse; }
+  .word-table th {
+    text-align:left; font-size:.75rem; font-weight:700;
+    color:var(--muted); text-transform:uppercase; letter-spacing:.06em;
+    padding: 8px 12px; border-bottom: 2px solid var(--border);
+  }
+  .word-table td {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: .88rem; vertical-align: middle;
+  }
+  .word-table tr:last-child td { border-bottom: none; }
+  .word-table tr:hover td { background: var(--bg); }
+
+  .acc-pill {
+    padding: 3px 10px; border-radius: 99px;
+    font-size: .75rem; font-weight: 700;
+    display: inline-block;
+  }
+  .acc-pill.green { background: var(--green-l); color: var(--green); }
+  .acc-pill.amber { background: var(--amber-l); color: var(--amber); }
+  .acc-pill.red   { background: var(--red-l);   color: var(--red); }
+  .acc-pill.grey  { background: var(--bg);       color: var(--muted); }
+
+  .progress-track {
+    width: 100%;
+    height: 10px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--blue);
+    transition: width .25s ease;
+  }
+  .progress-fill.green { background: var(--green); }
+  .progress-fill.amber { background: var(--amber); }
+
+  /* Weak words list */
+  .weak-list { list-style:none; margin-top:4px; }
+  .weak-item {
+    display:flex; align-items:center; gap:12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .weak-item:last-child { border-bottom:none; }
+  .weak-emoji { font-size: 1.4rem; }
+  .weak-name  { font-weight:700; }
+  .weak-acc   { color:var(--muted); font-size:.82rem; }
+  .weak-item .btn { margin-left:auto; }
+
+  canvas { max-height: 220px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <span class="icon">📊</span> Statistik Prestasi Anda
+</div>
+
+<!-- Summary cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Jumlah Sesi</div>
+    <div class="stat-value">{{ total_sessions }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Ketepatan Keseluruhan</div>
+    <div class="stat-value">{{ overall_accuracy }}%</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Perkataan Dikuasai</div>
+    <div class="stat-value">{{ words_mastered }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Streak Semasa</div>
+    <div class="stat-value" style="font-size:1.8rem;">{{ streak }}</div>
+  </div>
+</div>
+
+<!-- Chart + weak words -->
+<div class="two-col" style="margin-bottom:24px;">
+  <div class="card">
+    <div style="font-weight:700;margin-bottom:16px;">Ketepatan 14 Hari Lepas</div>
+    <canvas id="trend-chart"></canvas>
+    <p style="font-size:.75rem;color:var(--muted);margin-top:8px;">
+      Hari tanpa aktiviti tidak ditunjukkan.
+    </p>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;margin-bottom:16px;">Perkataan Perlu Latihan</div>
+    {% if weak_words %}
+    <ul class="weak-list">
+      {% for w in weak_words %}
+      <li class="weak-item">
+        <span class="weak-emoji">
+          {{ {"air":"💧","demam":"🤒","dengar":"👂","makan":"🍽️","minum":"🥛",
+              "salah":"❌","saya":"👤","senyap":"🤫","tidur":"😴","waktu":"⏰"}[w.slug] }}
+        </span>
+        <div>
+          <div class="weak-name">{{ w.label }}</div>
+          <div class="weak-acc">{{ w.accuracy }}% ketepatan · {{ w.attempts }} percubaan</div>
+        </div>
+        <a class="btn btn-blue btn-sm" href="/practice/{{ w.slug }}">Latih</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color:var(--muted);font-size:.9rem;">
+      Belum ada data. Mulakan latihan untuk melihat statistik di sini.
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Full per-word table -->
+<div class="card">
+  <div style="font-weight:700;margin-bottom:16px;">Prestasi Setiap Perkataan</div>
+  <table class="word-table">
+    <thead>
+      <tr>
+        <th>Perkataan</th>
+        <th>Percubaan</th>
+        <th>Ketepatan</th>
+        <th>Kemajuan</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for w in words_data %}
+      <tr>
+        <td>
+          <span style="margin-right:6px;">
+            {{ {"air":"💧","demam":"🤒","dengar":"👂","makan":"🍽️","minum":"🥛",
+                "salah":"❌","saya":"👤","senyap":"🤫","tidur":"😴","waktu":"⏰"}[w.slug] }}
+          </span>
+          <strong>{{ w.label }}</strong>
+        </td>
+        <td>{{ w.attempts }}</td>
+        <td>
+          {% if w.attempts == 0 %}
+            <span class="acc-pill grey">—</span>
+          {% elif w.accuracy >= 70 %}
+            <span class="acc-pill green">{{ w.accuracy }}%</span>
+          {% elif w.accuracy >= 50 %}
+            <span class="acc-pill amber">{{ w.accuracy }}%</span>
+          {% else %}
+            <span class="acc-pill red">{{ w.accuracy }}%</span>
+          {% endif %}
+        </td>
+        <td style="min-width:120px;">
+          <div class="progress-track">
+            <div class="progress-fill {% if w.progress >= 70 %}green{% elif w.attempts > 0 and w.progress < 50 %}amber{% endif %}"
+                 style="width: {{ w.progress}}%"></div>
+          </div>
+        </td>
+        <td>
+          <a class="btn btn-ghost btn-sm" href="/practice/{{ w.slug }}">Latih</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  // Trend chart (Chart.js)
+  const dailyData = {{ daily_chart | tojson }};
+  const labels    = dailyData.map(d => d.date);
+  const values    = dailyData.map(d => d.accuracy);
+
+  new Chart(document.getElementById('trend-chart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Ketepatan (%)',
+        data: values,
+        borderColor:     '#2563eb',
+        backgroundColor: 'rgba(37,99,235,.08)',
+        tension: .35,
+        fill: true,
+        spanGaps: true,
+        pointRadius: 4,
+        pointBackgroundColor: '#2563eb',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+</script>
+{% endblock %}
